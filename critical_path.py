@@ -5,6 +5,7 @@ class CriticalPath:
         self.graph = task_graph
 
     def compute_critical_path(self):
+        # Compute the longest path (Critical Path) in the Directed Acyclic Graph (DAG)
         longest_path = nx.dag_longest_path(self.graph, weight='duration')
         longest_duration = sum(self.graph.nodes[node]["duration"] for node in longest_path)
         return longest_path, longest_duration

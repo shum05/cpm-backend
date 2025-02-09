@@ -1,29 +1,33 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import pandas as pd
 import networkx as nx
-import os
-from task_scheduler import TaskScheduler
-from critical_path import CriticalPath
 
 app = Flask(__name__)
 CORS(app)
 
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+class CriticalPath:
+    def __init__(self, task_graph):
+        self.graph = task_graph
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
+    def compute_critical_path(self):
+        longest_path = nx.dag_longest_path(self.graph, weight='duration')
+        longest_duration = sum(self.graph.nodes[node]["duration"] for node in longest_path)
+        return longest_path, longest_duration
 
-    file = request.files['file']
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(file_path)
+@app.route('/calculate', methods=['POST'])
+def calculate_critical_path():
+    data = request.json
+    tasks = data.get("tasks", [])
 
-    scheduler = TaskScheduler(file_path)
-    task_graph = scheduler.get_task_graph()
-    
+    if not tasks:
+        return jsonify({"error": "No tasks provided"}), 400
+
+    task_graph = nx.DiGraph()
+    for task in tasks:
+        task_graph.add_node(task["name"], duration=task["duration"])
+        for dependency in task["dependencies"]:
+            task_graph.add_edge(dependency, task["name"])
+
     cpm = CriticalPath(task_graph)
     critical_path, duration = cpm.compute_critical_path()
 
